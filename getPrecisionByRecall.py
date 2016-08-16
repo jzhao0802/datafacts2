@@ -130,7 +130,7 @@ def Tests():
     import csv
     import sys
 
-    path = '/Users/anandviswanathan/Downloads/Task6__pr_evaluation_metric/toydata/labelPred.csv'
+    path = '~/Downloads/Task6__pr_evaluation_metric/toydata/labelPred.csv'
     
     with open(path, 'rb') as f:
         reader = csv.reader(f)
