@@ -108,7 +108,7 @@ def getPrecisionByRecall(scoreAndLabels, desired_recall):
     #desired recall is already existing then return the corresponding precision
     if(desired_recall in recall):
     	idx = recall.index(desired_recall)
-    	return recall[idx]
+    	return precision[idx]
     	
     #if the recall does not exist in the computed values, do nearest neighbour
     else:
@@ -120,7 +120,7 @@ def getPrecisionByRecall(scoreAndLabels, desired_recall):
     		return precision[position_lower]
     		
     	elif(diff_value_upper <  diff_value_lower):
-    		return precision[position_lower]
+    		return precision[position_upper]
     		
     	elif(diff_value_upper == diff_value_lower):
     		return (precision[position_upper] + precision[position_lower]) / 2.0
@@ -130,7 +130,7 @@ def Tests():
     import csv
     import sys
 
-    path = '~/Downloads/Task6__pr_evaluation_metric/toydata/labelPred.csv'
+    path = '/Downloads/Task6__pr_evaluation_metric/toydata/labelPred.csv'
     
     with open(path, 'rb') as f:
         reader = csv.reader(f)
