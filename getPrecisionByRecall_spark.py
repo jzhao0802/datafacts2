@@ -1,4 +1,4 @@
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkConf, SparkContext, SQLContext
 from pyspark.sql import HiveContext, DataFrame
 from pyspark.sql.functions import *
 from pyspark.sql import functions as F
@@ -49,6 +49,12 @@ def _binary_clf_curve(scoreAndLabels, pos_label=None, sample_weight=None):
     sortedScoresAndLabels = sortedScoresAndLabels.rdd.zipWithIndex()\
         .toDF(['data','index'])\
         .select('data.label','data.pred','data.rank','index')
+
+    #get existing spark context
+    sc = SparkContext._active_spark_context
+
+    #get existing HiveContext
+    sqlContext = HiveContext.getOrCreate(sc)
 
     #saving the dataframe to temporary table
     sortedScoresAndLabels.registerTempTable("processeddata")
