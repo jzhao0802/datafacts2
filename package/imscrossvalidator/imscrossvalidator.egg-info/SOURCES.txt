@@ -1,0 +1,10 @@
+setup.py
+crossvalidator/__init__.py
+crossvalidator/crossvalidator.py
+imscrossvalidator.egg-info/PKG-INFO
+imscrossvalidator.egg-info/SOURCES.txt
+imscrossvalidator.egg-info/dependency_links.txt
+imscrossvalidator.egg-info/not-zip-safe
+imscrossvalidator.egg-info/top_level.txt
+stratification/__init__.py
+stratification/stratification.py

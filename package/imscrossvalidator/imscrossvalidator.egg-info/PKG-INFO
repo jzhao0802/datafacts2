@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: imscrossvalidator
+Version: 0.1
+Summary: CrossValidator with custom stratification (matching or grouping patients of same category in same fold)
+Home-page: UNKNOWN
+Author: Aditya Konda
+Author-email: akonda@uk.imshealth.com
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
