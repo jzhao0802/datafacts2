@@ -81,7 +81,7 @@ class CrossValidatorWithStratification(Estimator):
 
         self.bestIndex = None
         self.bestMetric = None
-        
+        self.allMetrics = None
         self.metricValue=Param(self, "metricValue", "metricValue")
         
         kwargs = self.__init__._input_kwargs
@@ -191,6 +191,13 @@ class CrossValidatorWithStratification(Estimator):
             bestMetric = "\nCrossvalidation has not run yet.\n"
         return bestMetric
 
+    def getAllMetrics(self):
+        if(self.allMetrics != None):
+            allMetrics = self.allMetrics
+        else:
+            allMetrics = "\nCrossvalidation has not run yet.\n"
+        return allMetrics
+            
 
     def _fit(self, dataset):
         est = self.getOrDefault(self.estimator)
@@ -253,6 +260,7 @@ class CrossValidatorWithStratification(Estimator):
             self.bestIndex = np.argmin(metrics)
         
         self.bestMetric = metrics[self.bestIndex]
+        self.allMetrics = metrics
         
         # return the best model
         self.bestModel = est.fit(dataset, epm[self.bestIndex])
