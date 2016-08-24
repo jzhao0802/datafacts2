@@ -162,24 +162,24 @@ class Evaluator(Params):
     """
     Base class for evaluators that compute metrics from predictions.
     """
-
+    
     __metaclass__ = ABCMeta
-
+    
     @abstractmethod
     def _evaluate(self, dataset):
         """
         Evaluates the output.
-
+    
         :param dataset: a dataset that contains labels/observations and
                predictions
         :return: metric
         """
         raise NotImplementedError()
-
+    
     def evaluate(self, dataset, params=None):
         """
         Evaluates the output with optional parameters.
-
+    
         :param dataset: a dataset that contains labels/observations and
                         predictions
         :param params: an optional param map that overrides embedded
@@ -195,7 +195,7 @@ class Evaluator(Params):
                 return self._evaluate(dataset)
         else:
             raise ValueError("Params must be a param map but got %s." % type(params))
-
+    
     def isLargerBetter(self):
         """
         Indicates whether the metric returned by :py:meth:`evaluate` should be maximized
@@ -211,9 +211,9 @@ class JavaEvaluator(Evaluator, JavaWrapper):
     Base class for :py:class:`Evaluator`s that wrap Java/Scala
     implementations.
     """
-
+    
     __metaclass__ = ABCMeta
-
+    
     def _evaluate(self, dataset):
         """
         Evaluates the output.
@@ -222,7 +222,7 @@ class JavaEvaluator(Evaluator, JavaWrapper):
         """
         self._transfer_params_to_java()
         return self._java_obj.evaluate(dataset._jdf)
-
+    
     def isLargerBetter(self):
         self._transfer_params_to_java()
         return self._java_obj.isLargerBetter()
@@ -327,16 +327,27 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
                  metricName="areaUnderROC")
         """
         super(BinaryClassificationEvaluator_IMSPA, self).__init__()
-        self._java_obj = self._new_java_obj(
-            "org.apache.spark.ml.evaluation.BinaryClassificationEvaluator", self.uid)
-        #: param for metric name in evaluation (areaUnderROC|areaUnderPR)
-        self.metricName = Param(self, "metricName",
-                                "metric name in evaluation (areaUnderROC|areaUnderPR)")
-        self.metricValue = Param(self, "metricValue", "metric recall value in getPrecisionByRecall" )
-        self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
-                         metricName="areaUnderROC")
-        kwargs = self.__init__._input_kwargs
-        self._set(**kwargs)
+        if (metricName == "areaUnderROC") | (metricName == "areaUnderPR"):        
+            self._java_obj = self._new_java_obj(
+                "org.apache.spark.ml.evaluation.BinaryClassificationEvaluator", self.uid)
+            #: param for metric name in evaluation (areaUnderROC|areaUnderPR)
+            self.metricName = Param(self, "metricName",
+                                    "metric name in evaluation (areaUnderROC|areaUnderPR)")
+            self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
+                             metricName="areaUnderROC")
+            kwargs = self.__init__._input_kwargs
+            if "metricValue" in kwargs.keys():
+                kwargs.pop("metricValue")
+            
+        else:
+            self.metricValue = Param(self, "metricValue", "metric recall value in getPrecisionByRecall" )
+            self.metricName = Param(self, "metricName",
+                                    "metric name in evaluation (areaUnderROC|areaUnderPR)")
+            self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
+                             metricName="areaUnderROC", metricValue=0.6)
+            kwargs = self.__init__._input_kwargs
+            
+        self._set(**kwargs)       
 
     def setMetricName(self, value):
         """
@@ -376,7 +387,7 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
         return self._set(**kwargs)
 
 def _Test1():
-    evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed", metricName="precisionByRecall")
+    evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed", metricName="precisionByRecall", metricValue=0.6)
 
 
 def _Test2():
@@ -475,7 +486,7 @@ def _Test2():
             .build()
 
         # Create the evaluator
-        evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed")
+        evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed", metricValue=0.6)
         #evaluator = BinaryClassificationEvaluator()
 
         # Create the cross validator
