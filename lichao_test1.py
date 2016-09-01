@@ -449,7 +449,7 @@ def _Test3():
     
     
     evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol = "pred", labelCol="label")
-    precision = evaluator.evaluate(scoreAndLabels)
+    precision = evaluator.evaluate(scoreAndLabels, {"metricName": "precisionByRecall", "metricValue": 0.6})
     
     # predicted_results = model.transform(ts_td, paramGrid[0])
     # predicted_results = predicted_results.select('label', 'indexed', 'probability').withColumnRenamed("probability", "pred")
@@ -609,6 +609,6 @@ if __name__ == "__main__":
     sc = SparkContext(appName=app_name)
     sqlContext = HiveContext(sc)
 	
-    _Test1()
+    _Test3()
 	
     # _Test2()
