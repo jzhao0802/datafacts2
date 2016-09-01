@@ -34,6 +34,9 @@ from pyspark.ml.tuning import CrossValidatorModel, ParamGridBuilder
 from pyspark.ml.feature import StringIndexer, VectorAssembler
 from pyspark.ml.classification import RandomForestClassifier
 
+
+# from pyspark.sql.functions import desc, col
+import pyspark.sql.functions as F
 from crossvalidator import *
 from stratification import *
 
@@ -49,91 +52,91 @@ def precision_recall_curve(scoreAndLabels, pos_label=None,
                                              pos_label=pos_label,
                                              sample_weight=sample_weight)
     #total tps
-    tpsMax = (tpsFpsScorethresholds.agg(F.max(col("tps"))).collect())[0]["max(tps)"]
-
+    tpsMax = ((tpsFpsScorethresholds.agg(F.max(F.col("tps"))).collect())[0].asDict())["max(tps)"]
+    
     #calculate precision
     tpsFpsScorethresholds = tpsFpsScorethresholds\
-        .withColumn("precision", col("tps") / ( col("tps") + col("fps") ) )
-
+        .withColumn("precision", F.col("tps") / (F.col("tps") + F.col("fps") ) )
+    
     #calculate recall
     tpsFpsScorethresholds = tpsFpsScorethresholds\
-        .withColumn("recall", col("tps") / tpsMax)
-
+        .withColumn("recall", F.col("tps") / tpsMax)
+    
     return tpsFpsScorethresholds
 
 def _binary_clf_curve(scoreAndLabels, pos_label=None, sample_weight=None):
-
+    
     #sort the dataframe by pred column in descending order
-    sortedScoresAndLabels = scoreAndLabels.sort(desc("pred"))
-
+    sortedScoresAndLabels = scoreAndLabels.sort(F.desc("pred"))
+    
     #creating rank for pred column
     lookup = (scoreAndLabels.select("pred")
               .distinct()
-              .sort(desc("pred"))
+              .sort(F.desc("pred"))
               .rdd
               .zipWithIndex()
               .map(lambda x: x[0] + (x[1],))
               .toDF(["pred", "rank"]))
-
+    
     #join the dataframe with lookup to assign the ranks
     sortedScoresAndLabels = sortedScoresAndLabels.join(lookup, ["pred"])
-
+    
     #sorting in descending order based on the pred column
-    sortedScoresAndLabels = sortedScoresAndLabels.sort(desc("pred"))
-
+    sortedScoresAndLabels = sortedScoresAndLabels.sort(F.desc("pred"))
+    
     #adding index to the dataframe
     sortedScoresAndLabels = sortedScoresAndLabels.rdd.zipWithIndex()\
         .toDF(['data','index'])\
         .select('data.label','data.pred','data.rank','index')
-
+    
     #get existing spark context
     #sc = SparkContext._active_spark_context
-
+    
     #get existing HiveContext
     #sqlContext = HiveContext.getOrCreate(sc)
 	
     #saving the dataframe to temporary table
     sortedScoresAndLabels.registerTempTable("processeddata")
-
+    
     #TODO: script to avoid partition by warning, and span data across clusters nodes
     #creating the cumulative sum for tps
     sortedScoresAndLabelsCumSum = sqlContext\
         .sql(""" SELECT label, pred, rank, index, sum(label) OVER (ORDER BY index) as tps FROM processeddata """)
-
+    
     #repartitioning
     sortedScoresAndLabelsCumSum = sortedScoresAndLabelsCumSum.coalesce(partition_size)
-
+    
     #cache after partitioning
     sortedScoresAndLabelsCumSum.cache()
-
+    
     #droping the duplicates for thresholds
     sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSum\
         .dropDuplicates(['pred'])
-
+    
     #creating the fps column based on rank and tps column
     sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSumThresholds\
-        .withColumn("fps", 1 + col("rank") - col("tps"))
-
+        .withColumn("fps", 1 + F.col("rank") - F.col("tps"))
+    
     return sortedScoresAndLabelsCumSumThresholds
 
 
 def nearest_values(df, desired_value):
     #subtract all the values in the array by desired value & sort by minimum distance on top and take top 2 records.
     #i.e. get nearest neighbour
-    dfWithDiff = df.withColumn("diff", F.abs(col("recall") - desired_value)).sort(asc("diff")).take(2)
+    dfWithDiff = df.withColumn("diff", F.abs(F.col("recall") - desired_value)).sort(F.asc("diff")).take(2)
     return dfWithDiff
 
 
 def getPrecisionByRecall(scoreAndLabels, desired_recall):
     #get precision, recall, thresholds
     prcurve = precision_recall_curve(scoreAndLabels)
-
-    prcurve_filtered = prcurve.where(col('recall') == desired_recall)
-
+    
+    prcurve_filtered = prcurve.where(F.col('recall') == desired_recall)
+    
     #if the recall value exists then get direct precision corresponding to it
     if(prcurve_filtered.count() > 0):
-        return (prcurve_filtered.take(1)[0]['precision'])
-
+        return ((prcurve_filtered.take(1)[0].asDict())['precision'])
+    
     #if the recall does not exist in the computed values, do nearest neighbour
     else:
         prcurve_nearest = nearest_values(prcurve, desired_recall)
@@ -142,18 +145,18 @@ def getPrecisionByRecall(scoreAndLabels, desired_recall):
 		
         #indices = prcurve_nearest.select('index').flatMap(lambda x: x).collect()
         
-        diff_value_near1 = prcurve_nearest[0]['diff']
-        diff_value_near2 = prcurve_nearest[1]['diff']
-
-        precision_near1 = prcurve_nearest[0]['precision']
-        precision_near2 = prcurve_nearest[1]['precision']
-
+        diff_value_near1 = (prcurve_nearest[0].asDict())['diff']
+        diff_value_near2 = (prcurve_nearest[1].asDict())['diff']
+        
+        precision_near1 = (prcurve_nearest[0].asDict())['precision']
+        precision_near2 = (prcurve_nearest[1].asDict())['precision']
+        
         if(diff_value_near1 > diff_value_near2):
             return precision_near2
-
+        
         elif(diff_value_near1 < diff_value_near2):
             return precision_near1
-
+        
         elif(diff_value_near1 == diff_value_near2):
             return (precision_near1 + precision_near2) / 2.0
 
@@ -266,7 +269,7 @@ class BinaryClassificationEvaluator(JavaEvaluator, HasLabelCol, HasRawPrediction
         self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
                          metricName="areaUnderROC")
         kwargs = self.__init__._input_kwargs
-        self._set(**kwargs)
+        self._set(**kwargs)     
 
     def setMetricName(self, value):
         """
@@ -309,16 +312,16 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
     0.70...
     >>> evaluator.evaluate(dataset, {evaluator.metricName: "areaUnderPR"})
     0.83...
-
+    
     .. versionadded:: 1.4.0
     """
-
+    
     # a placeholder to make it appear in the generated doc
     metricName = Param(Params._dummy(), "metricName",
                        "metric name in evaluation (areaUnderROC|areaUnderPR)")
     #metricValue = Param(Params._dummy(), "metricValue", "metric recall value in getPrecisionByRecall")
-
-
+    
+    
     @keyword_only
     def __init__(self, rawPredictionCol="rawPrediction", labelCol="label",
                  metricName="areaUnderROC", metricValue=0.6):
@@ -339,42 +342,53 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
             if "metricValue" in kwargs.keys():
                 kwargs.pop("metricValue")
             
-        else:
+        elif (metricName == "precisionByRecall"):
             self.metricValue = Param(self, "metricValue", "metric recall value in getPrecisionByRecall" )
+            self.metricValueValue = metricValue
             self.metricName = Param(self, "metricName",
                                     "metric name in evaluation (areaUnderROC|areaUnderPR)")
             self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
                              metricName="areaUnderROC", metricValue=0.6)
             kwargs = self.__init__._input_kwargs
+        else: 
+            raiseValueError("Invalid input metricName: {}".format(self.metricNameValue))
+        
+        self.metricNameValue = metricName               
+        self._set(**kwargs)
+        
+    def evaluate(self, dataset):
+        if (self.metricNameValue == "areaUnderROC") | (self.metricNameValue == "areaUnderPR"):      
+            return super(BinaryClassificationEvaluator_IMSPA, self).evaluate(dataset)
+        else:
+            return getPrecisionByRecall(dataset, self.metricValueValue)
             
-        self._set(**kwargs)       
-
+        
     def setMetricName(self, value):
         """
         Sets the value of :py:attr:`metricName`.
         """
         self._paramMap[self.metricName] = value
         return self
-
+    
     def getMetricName(self):
         """
         Gets the value of metricName or its default value.
         """
         return self.getOrDefault(self.metricName)
-
+    
     def setMetricValue(self, value):
         """
         Sets the value of :py:attr:`metricValue`.
         """
         self._paramMap[self.metricValue] = value
         return self
-
+    
     def getMetricValue(self):
         """
         Gets the value of metricValue or its default value.
         """
         return self.getOrDefault(self.metricValue)
-
+    
     @keyword_only
     def setParams(self, rawPredictionCol="rawPrediction", labelCol="label",
                   metricName="areaUnderROC"):
@@ -387,7 +401,21 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
         return self._set(**kwargs)
 
 def _Test1():
-    evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed", metricName="precisionByRecall", metricValue=0.6)
+    file = "s3://emr-rwes-pa-spark-dev-datastore/lichao.test/data/toy_data/task6/labelPred.csv"
+    scoreAndLabels = sqlContext.read.load(file, format='com.databricks.spark.csv', header='true',
+                                          inferSchema='true')
+    scoreAndLabels = scoreAndLabels.select(scoreAndLabels.label.cast('double'), scoreAndLabels.pred).withColumnRenamed("cast(label as double)", "label")
+    
+    
+    evaluator = BinaryClassificationEvaluator_IMSPA(metricName = "precisionByRecall", labelCol="indexed", metricValue=0.6)
+    precision = evaluator.evaluate(scoreAndLabels)
+    
+    # predicted_results = model.transform(ts_td, paramGrid[0])
+    # predicted_results = predicted_results.select('label', 'indexed', 'probability').withColumnRenamed("probability", "pred")
+    # metric = evaluator.evaluate(predicted_results)
+    
+    print("result is {}".format(precision))
+    print("program finished successfully. ")
 
 
 def _Test2():
@@ -486,7 +514,7 @@ def _Test2():
             .build()
 
         # Create the evaluator
-        evaluator = BinaryClassificationEvaluator_IMSPA(labelCol="indexed", metricValue=0.6)
+        evaluator = BinaryClassificationEvaluator_IMSPA(metricName = "precisionByRecall", labelCol="indexed", metricValue=0.6)
         #evaluator = BinaryClassificationEvaluator()
 
         # Create the cross validator
@@ -542,4 +570,4 @@ if __name__ == "__main__":
 	
     _Test1()
 	
-    _Test2()
+    # _Test2()
