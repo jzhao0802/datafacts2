@@ -7,8 +7,10 @@ from pyspark.ml.param.shared import HasLabelCol, HasRawPredictionCol
 import pyspark.sql.functions as F
 # a temporary solution for SQLContext
 from pyspark import SparkContext
-from pyspark.sql import SQLContext
+from pyspark.sql import HiveContext
 #
+
+__all__ = ['BinaryClassificationEvaluator_IMSPA']
 
 partition_size = 20
 
@@ -67,8 +69,7 @@ def _binary_clf_curve(scoreAndLabels, rawPredictionCol, labelCol):
     # TODO: script to avoid partition by warning, and span data across clusters nodes
     # creating the cumulative sum for tps
     # A temporary solution for Spark 1.5.2
-    sqlContext = SQLContext(SparkContext._active_spark_context)
-    sortedScoresAndLabelsCumSum = sqlContext \
+    sortedScoresAndLabelsCumSum = scoreAndLabels.sql_ctx \
         .sql(
         "SELECT " + labelCol + ", " + rawPredictionCol + ", rank, index, sum(" + labelCol + ") OVER (ORDER BY index) as tps FROM processeddata ")
 
@@ -136,21 +137,10 @@ def getPrecisionByRecall(scoreAndLabels,
 @inherit_doc
 class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabelCol, HasRawPredictionCol):
     """
-    Evaluator for binary classification, which expects two input
-    columns: rawPrediction and label.
 
-    >>> from pyspark.mllib.linalg import Vectors
-    >>> scoreAndLabels = map(lambda x: (Vectors.dense([1.0 - x[0], x[0]]), x[1]),
-    ...    [(0.1, 0.0), (0.1, 1.0), (0.4, 0.0), (0.6, 0.0), (0.6, 1.0), (0.6, 1.0), (0.8, 1.0)])
-    >>> dataset = sqlContext.createDataFrame(scoreAndLabels, ["raw", "label"])
-    ...
-    >>> evaluator = BinaryClassificationEvaluator(rawPredictionCol="raw")
-    >>> evaluator.evaluate(dataset)
-    0.70...
-    >>> evaluator.evaluate(dataset, {evaluator.metricName: "areaUnderPR"})
-    0.83...
+    need to re-write the doc
 
-    .. versionadded:: 1.4.0
+
     """
 
     # a placeholder to make it appear in the generated doc
@@ -167,7 +157,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
         __init__(self, rawPredictionCol="rawPrediction", labelCol="label", \
                  metricName="areaUnderROC")
         """
-        super(BinaryClassificationEvaluator_IMSPA, self).__init__()
+        super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).__init__()
         if (metricName == "areaUnderROC") | (metricName == "areaUnderPR"):
             self._java_obj = self._new_java_obj(
                 "org.apache.spark.ml.evaluation.BinaryClassificationEvaluator", self.uid)
@@ -202,7 +192,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
     def evaluate(self, dataset, params=None):
         if params is None:
             if (self.initMetricNameValue == "areaUnderROC") | (self.initMetricNameValue == "areaUnderPR"):
-                return super(BinaryClassificationEvaluator_IMSPA, self).evaluate(dataset)
+                return super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).evaluate(dataset)
             else:
                 return getPrecisionByRecall(dataset,
                                             self.rawPredictionColValue,
@@ -219,7 +209,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                     raise ValueError("When 'precisionByRecall' is specified calling the evaluate() method, " + \
                                      "'metricValue' must also be specified")
             else:
-                return super(BinaryClassificationEvaluator_IMSPA, self).evaluate(dataset, params)
+                return super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).evaluate(dataset, params)
         else:
             raise ValueError("Params must be a param map but got %s." % type(params))
 
