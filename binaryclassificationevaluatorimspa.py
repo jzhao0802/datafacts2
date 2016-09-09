@@ -199,7 +199,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                                             self.labelColValue,
                                             self.initMetricValueValue)
         elif (isinstance(params, dict)):
-            if ("precisionByRecall" in params.keys()):
+            if ("precisionByRecall" in params.values()):
                 if "metricValue" in params.keys():
                     return getPrecisionByRecall(dataset,
                                                 self.rawPredictionColValue,
