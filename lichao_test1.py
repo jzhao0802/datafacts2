@@ -340,7 +340,7 @@ class BinaryClassificationEvaluator_IMSPA(JavaEvaluator, HasLabelCol, HasRawPred
             self._setDefault(rawPredictionCol="rawPrediction", labelCol="label",
                              metricName="areaUnderROC")
             kwargs = self.__init__._input_kwargs
-            if "metricValue" in kwargs.keys():
+            if "metricValue" in kwargs.values():
                 kwargs.pop("metricValue")
             
         elif (metricName == "precisionByRecall"):
