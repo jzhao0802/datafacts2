@@ -5,6 +5,7 @@ from pyspark.mllib.common import inherit_doc
 from pyspark.ml.param import Param, Params
 from pyspark.ml.param.shared import HasLabelCol, HasRawPredictionCol
 import pyspark.sql.functions as F
+from pyspark.sql.types import DoubleType
 # a temporary solution for SQLContext
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
@@ -14,10 +15,15 @@ __all__ = ['BinaryClassificationEvaluator_IMSPA']
 
 partition_size = 20
 
+def getitem(i):
+    def getitem_(v):
+         return v.array.item(i)
+    return F.udf(getitem_, DoubleType())
 
-def precision_recall_curve(scoreAndLabels, rawPredictionCol, labelCol):
+
+def precision_recall_curve(labelAndVectorisedScores, rawPredictionCol, labelCol):
     # get the tps, fps and thresholds
-    tpsFpsScorethresholds = _binary_clf_curve(scoreAndLabels,
+    tpsFpsScorethresholds = _binary_clf_curve(labelAndVectorisedScores,
                                               rawPredictionCol, labelCol)
     # total tps
     tpsMax = ((tpsFpsScorethresholds.agg(F.max(F.col("tps"))).collect())[0].asDict())["max(tps)"]
@@ -33,29 +39,31 @@ def precision_recall_curve(scoreAndLabels, rawPredictionCol, labelCol):
     return tpsFpsScorethresholds
 
 
-def _binary_clf_curve(scoreAndLabels, rawPredictionCol, labelCol):
+def _binary_clf_curve(labelAndVectorisedScores, rawPredictionCol, labelCol):
     # sort the dataframe by pred column in descending order
-    sortedScoresAndLabels = scoreAndLabels.sort(F.desc(rawPredictionCol))
+    localPosProbCol = "pos_probability"
+    labelAndPositiveProb = labelAndVectorisedScores.select(labelCol, getitem(1)(rawPredictionCol).alias(localPosProbCol))
+    sortedScoresAndLabels = labelAndPositiveProb.sort(F.desc(localPosProbCol))
 
     # creating rank for pred column
-    lookup = (scoreAndLabels.select(rawPredictionCol)
+    lookup = (sortedScoresAndLabels.select(localPosProbCol)
               .distinct()
-              .sort(F.desc(rawPredictionCol))
+              .sort(F.desc(localPosProbCol))
               .rdd
               .zipWithIndex()
               .map(lambda x: x[0] + (x[1],))
-              .toDF([rawPredictionCol, "rank"]))
+              .toDF([localPosProbCol, "rank"]))
 
     # join the dataframe with lookup to assign the ranks
-    sortedScoresAndLabels = sortedScoresAndLabels.join(lookup, [rawPredictionCol])
+    sortedScoresAndLabels = sortedScoresAndLabels.join(lookup, [localPosProbCol])
 
     # sorting in descending order based on the pred column
-    sortedScoresAndLabels = sortedScoresAndLabels.sort(F.desc(rawPredictionCol))
+    sortedScoresAndLabels = sortedScoresAndLabels.sort(F.desc(localPosProbCol))
 
     # adding index to the dataframe
     sortedScoresAndLabels = sortedScoresAndLabels.rdd.zipWithIndex() \
         .toDF(['data', 'index']) \
-        .select('data.' + labelCol, 'data.' + rawPredictionCol, 'data.rank', 'index')
+        .select('data.' + labelCol, 'data.' + localPosProbCol, 'data.rank', 'index')
 
     # get existing spark context
     # sc = SparkContext._active_spark_context
@@ -69,9 +77,9 @@ def _binary_clf_curve(scoreAndLabels, rawPredictionCol, labelCol):
     # TODO: script to avoid partition by warning, and span data across clusters nodes
     # creating the cumulative sum for tps
     # A temporary solution for Spark 1.5.2
-    sortedScoresAndLabelsCumSum = scoreAndLabels.sql_ctx \
+    sortedScoresAndLabelsCumSum = labelAndVectorisedScores.sql_ctx \
         .sql(
-        "SELECT " + labelCol + ", " + rawPredictionCol + ", rank, index, sum(" + labelCol + ") OVER (ORDER BY index) as tps FROM processeddata ")
+        "SELECT " + labelCol + ", " + localPosProbCol + ", rank, index, sum(" + labelCol + ") OVER (ORDER BY index) as tps FROM processeddata ")
 
     # repartitioning
     sortedScoresAndLabelsCumSum = sortedScoresAndLabelsCumSum.coalesce(partition_size)
@@ -81,7 +89,7 @@ def _binary_clf_curve(scoreAndLabels, rawPredictionCol, labelCol):
 
     # droping the duplicates for thresholds
     sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSum \
-        .dropDuplicates([rawPredictionCol])
+        .dropDuplicates([localPosProbCol])
 
     # creating the fps column based on rank and tps column
     sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSumThresholds \
@@ -97,12 +105,12 @@ def nearest_values(df, desired_value):
     return dfWithDiff
 
 
-def getPrecisionByRecall(scoreAndLabels,
+def getPrecisionByRecall(labelAndVectorisedScores,
                          rawPredictionCol,
                          labelCol,
                          desired_recall):
     # get precision, recall, thresholds
-    prcurve = precision_recall_curve(scoreAndLabels, rawPredictionCol, labelCol)
+    prcurve = precision_recall_curve(labelAndVectorisedScores, rawPredictionCol, labelCol)
 
     prcurve_filtered = prcurve.where(F.col('recall') == desired_recall)
 
@@ -190,6 +198,16 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
         self.labelColValue = labelCol
 
     def evaluate(self, dataset, params=None):
+        """
+        evaluate(self, dataset, params=None)
+
+        Input:
+        dataset: a DataFrame containing a label column and a prediction column. Every element in the prediction column
+                 must be a Vector containing the predicted scores to the negative (first element) and positive (second
+                 element) classes.
+        params: parameters about the metric to use. This will overwrite the settings in __init__().
+        Output: the evaluated metric value.
+        """
         if params is None:
             if (self.initMetricNameValue == "areaUnderROC") | (self.initMetricNameValue == "areaUnderPR"):
                 return super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).evaluate(dataset)
