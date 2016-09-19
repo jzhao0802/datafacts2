@@ -150,8 +150,19 @@ def getPrecisionByRecall(labelAndVectorisedScores,
 class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabelCol, HasRawPredictionCol):
     """
 
-    need to re-write the doc
+    Evaluator for binary classification, which expects two input
+    columns: rawPrediction and label.
 
+    >>> from pyspark.mllib.linalg import Vectors
+    >>> scoreAndLabels = map(lambda x: (Vectors.dense([1.0 - x[0], x[0]]), x[1]),
+    ...    [(0.1, 0.0), (0.1, 1.0), (0.4, 0.0), (0.6, 0.0), (0.6, 1.0), (0.6, 1.0), (0.8, 1.0)])
+    >>> dataset = sqlContext.createDataFrame(scoreAndLabels, ["raw", "label"])
+    ...
+    >>> evaluator = BinaryClassificationEvaluator(rawPredictionCol="raw")
+    >>> evaluator.evaluate(dataset)
+    0.70...
+    >>> evaluator.evaluate(dataset, {evaluator.metricName: "areaUnderPR"})
+    0.83...
 
     """
 
@@ -165,7 +176,8 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                  metricName="areaUnderROC", metricParams={"recallValue": 0.6}):
         """
         __init__(self, rawPredictionCol="rawPrediction", labelCol="label", \
-                 metricName="areaUnderROC")
+                 metricName="areaUnderROC", metricParams={"recallValue": 0.6})
+        Currently 'metricParams' is only used when 'metricName' is "precisionAtGivenRecall"
         """
         super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).__init__()
         if (metricName == "areaUnderROC") | (metricName == "areaUnderPR"):
@@ -180,7 +192,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
             if "metricParams" in kwargs.keys():
                 kwargs.pop("metricParams")
 
-        elif (metricName == "precisionByRecall"):
+        elif (metricName == "precisionAtGivenRecall"):
             self.metricParams = Param(
                 self, "metricParams", "additional parameters for calculating the metric, such as the recall value in getPrecisionByRecall")
             self.metricName = Param(self, "metricName",
@@ -221,9 +233,9 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                                                 self.labelColValue,
                                                 self.initMetricParams["recallValue"])
                 else:
-                    raise ValueError("To compute 'precisionByRecall', metricParams must include the key 'recallValue'.")
+                    raise ValueError("To compute 'precisionAtGivenRecall', metricParams must include the key 'recallValue'.")
         elif (isinstance(params, dict)):
-            if ("precisionByRecall" in params.values()):
+            if ("precisionAtGivenRecall" in params.values()):
                 if "metricParams" in params.keys():
                     if "recallValue" in params["metricParams"].keys():
                         return getPrecisionByRecall(dataset,
@@ -231,9 +243,9 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                                                     self.labelColValue,
                                                     params["metricParams"]["recallValue"])
                     else:
-                        raise ValueError("To compute 'precisionByRecall', metricParams must include the key 'recallValue'.")
+                        raise ValueError("To compute 'precisionAtGivenRecall', metricParams must include the key 'recallValue'.")
                 else:
-                    raise ValueError("When 'precisionByRecall' is specified calling the evaluate() method, " + \
+                    raise ValueError("When 'precisionAtGivenRecall' is specified calling the evaluate() method, " + \
                                      "'metricParams' must also be specified.")
             else:
                 return super(BinaryClassificationEvaluator_IMSPA.__mro__[1], self).evaluate(dataset, params)
