@@ -94,14 +94,13 @@ class PREvaluationMetricTests(unittest.TestCase):
                                         "metricValue": desiredRecall})
         self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false after calculating precision at recall.")
 
-    def test_precision_at_given_recall_correct_with_init(self):
+    def test_precision_at_given_recall_with_init(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=self.rawPredictionCol,
                                                         labelCol=self.labelCol, metricValue=0.6)
         precision = evaluator.evaluate(self.scoreAndLabelsVectorised)
-
         self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using init")
 
-    def test_precision_at_given_recall_correct_with_evaluate(self):
+    def test_precision_at_given_recall_with_evaluate(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {"metricName": "precisionByRecall", "metricValue": 0.6})
 
@@ -111,6 +110,17 @@ class PREvaluationMetricTests(unittest.TestCase):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
         ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderROC'})
         self.assertTrue((0.8290 - self.tolerance) <= ROC<= (0.8290 + self.tolerance), "ROC value is outside of the specified range")
+
+    def test_precision_at_given_recall_different_colnames(self):
+        new_label_col = "AA"
+        new_prediction_col = "BB"
+        evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=new_prediction_col,
+                                                        labelCol=new_label_col, metricValue=0.6)
+        precision = evaluator.evaluate(
+            self.scoreAndLabelsVectorised\
+                .withColumnRenamed(self.labelCol, new_label_col)\
+                .withColumnRenamed(self.rawPredictionCol, new_prediction_col))
+        self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using init")
 
 
 if __name__ == "__main__":
