@@ -190,7 +190,7 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
             kwargs = self.__init__._input_kwargs
 
         else:
-            raise ValueError("Invalid input metricName: {}".format(self.metricNameValue))
+            raise ValueError("Invalid input metricName: {}".format(self.metricName))
 
         self._set(**kwargs)
 
@@ -274,5 +274,13 @@ class BinaryClassificationEvaluator_IMSPA(BinaryClassificationEvaluator, HasLabe
                   metricName="areaUnderROC")
         Sets params for binary classification evaluator.
         """
+        tmp = getattr(self, "metricParams", None)
+        if tmp is None:
+            self.metricParams = Param(self, "metricParams",
+                "additional parameters for calculating the metric, such as the recall value in getPrecisionByRecall")
         kwargs = self.setParams._input_kwargs
+        self.initMetricParams = metricParams
+        self.initMetricNameValue = metricName
+        self.rawPredictionColValue = rawPredictionCol
+        self.labelColValue = labelCol
         return self._set(**kwargs)

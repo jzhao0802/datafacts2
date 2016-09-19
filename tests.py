@@ -124,6 +124,25 @@ class PREvaluationMetricTests(unittest.TestCase):
                 .withColumnRenamed(self.rawPredictionCol, new_prediction_col))
         self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using init")
 
+    def test_setParams_ROC(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol="xx", labelCol="yy", metricName="areaUnderPR")
+        evaluator.setParams(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol, metricName="areaUnderROC")
+        ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised)
+        self.assertTrue((0.8290 - self.tolerance) <= ROC <= (0.8290 + self.tolerance),
+                        "ROC value is outside of the specified range")
+
+    def test_setParams_precisionGivenRecall(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol="xx", labelCol="yy", metricName="areaUnderPR")
+        evaluator.setParams(
+            rawPredictionCol=self.rawPredictionCol,
+            labelCol=self.labelCol,
+            metricName="precisionByRecall",
+            metricParams={"recallValue":0.4}
+        )
+        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised)
+        self.assertEqual(round(precision, 4), 0.9048,
+                         "precisionByRecall metric producing incorrect precision: %s" % precision)
+
 
 if __name__ == "__main__":
     unittest.main()
