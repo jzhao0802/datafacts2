@@ -123,11 +123,11 @@ def getPrecisionByRecall(labelAndVectorisedScores,
                          desired_recall):
     # get precision, recall, thresholds
     prcurve = precision_recall_curve(labelAndVectorisedScores, rawPredictionCol, labelCol)
-    #prcurve_collected = prcurve.collect()
+    # prcurve_collected = prcurve.collect()
 
     prcurve_filtered = prcurve.filter(F.col('recall') == desired_recall)
     # df_collected = prcurve_filtered.collect()
-    # raise ValueError("df_collected: {0}\nprecision_recall_curve: {1}".format(df_collected, prcurve_collected))
+    # raise ValueError("df_collected: {0}\nprcurve_collected: {1}".format(df_collected, prcurve_collected))
 
     # if the recall value exists then get direct precision corresponding to it
     if (prcurve_filtered.count() > 0):
