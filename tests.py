@@ -66,7 +66,7 @@ class PREvaluationMetricTests(unittest.TestCase):
         desiredRecall = 0.2
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
                                        {"metricName": "precisionByRecall",
-                                        "metricValue": desiredRecall})
+                                        "metricParams": {"recallValue": desiredRecall}})
         self.assertEqual(round(precision, 4), 1.0, "precisionByRecall metric producing incorrect precision: %s" % precision)
 
     def test_is_precision_matching_2(self):
@@ -74,7 +74,7 @@ class PREvaluationMetricTests(unittest.TestCase):
         desiredRecall = 0.4
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
                                        {"metricName": "precisionByRecall",
-                                        "metricValue": desiredRecall})
+                                        "metricParams": {"recallValue": desiredRecall}})
         self.assertEqual(round(precision, 4), 0.9048, "precisionByRecall metric producing incorrect precision: %s" % precision)
 
     def test_is_precision_matching_3(self):
@@ -82,7 +82,7 @@ class PREvaluationMetricTests(unittest.TestCase):
         desiredRecall = 0.6
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
                                        {"metricName": "precisionByRecall",
-                                        "metricValue": desiredRecall})
+                                        "metricParams": {"recallValue": desiredRecall}})
         self.assertEqual(round(precision, 4), 0.8000, "precisionByRecall metric producing incorrect precision: %s" % precision)
 
     def test_is_precision_isLargeBetter_matching(self):
@@ -91,18 +91,20 @@ class PREvaluationMetricTests(unittest.TestCase):
         desiredRecall = 0.2
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
                                        {"metricName": "precisionByRecall",
-                                        "metricValue": desiredRecall})
+                                        "metricParams": {"recallValue": desiredRecall}})
         self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false after calculating precision at recall.")
 
     def test_precision_at_given_recall_with_init(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=self.rawPredictionCol,
-                                                        labelCol=self.labelCol, metricValue=0.6)
+                                                        labelCol=self.labelCol, metricParams={"recallValue": 0.6})
         precision = evaluator.evaluate(self.scoreAndLabelsVectorised)
         self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using init")
 
     def test_precision_at_given_recall_with_evaluate(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
-        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {"metricName": "precisionByRecall", "metricValue": 0.6})
+        precision = evaluator.evaluate(
+            PREvaluationMetricTests.scoreAndLabelsVectorised,
+            {"metricName": "precisionByRecall", "metricParams": {"recallValue": 0.6}})
 
         self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using evaluate")
 
@@ -115,7 +117,7 @@ class PREvaluationMetricTests(unittest.TestCase):
         new_label_col = "AA"
         new_prediction_col = "BB"
         evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=new_prediction_col,
-                                                        labelCol=new_label_col, metricValue=0.6)
+                                                        labelCol=new_label_col, metricParams={"recallValue": 0.6})
         precision = evaluator.evaluate(
             self.scoreAndLabelsVectorised\
                 .withColumnRenamed(self.labelCol, new_label_col)\
