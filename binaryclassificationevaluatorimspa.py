@@ -26,7 +26,7 @@ def precision_recall_curve(labelAndVectorisedScores, rawPredictionCol, labelCol)
 
     # calculate precision
     tpsFpsScorethresholds = tpsFpsScorethresholds \
-        .withColumn("precision", F.col("tps") / (F.col("tps") + F.col("fps")))
+        .withColumn("precision", F.col("tps") / (F.col("tps") + F.col("fps") + 1e-12))
 
     # calculate recall
     tpsFpsScorethresholds = tpsFpsScorethresholds \
@@ -77,21 +77,28 @@ def _binary_clf_curve(labelAndVectorisedScores, rawPredictionCol, labelCol):
     # cache after partitioning
     sortedScoresAndLabelsCumSum.cache()
 
-    # droping the duplicates for thresholds
-    sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSum \
-        .dropDuplicates([localPosProbCol])
+    # retain only the group-wise (according to threshold) max tps
+
+    df_max_tps_in_group = sortedScoresAndLabelsCumSum.groupBy(localPosProbCol).agg(F.max("tps").alias("max_tps"))
+    dup_removed_scores_labels = \
+        sortedScoresAndLabelsCumSum.join(
+            df_max_tps_in_group,
+            [sortedScoresAndLabelsCumSum[localPosProbCol] == df_max_tps_in_group[localPosProbCol],
+             sortedScoresAndLabelsCumSum["tps"] == df_max_tps_in_group["max_tps"]]
+        )\
+            .drop(df_max_tps_in_group[localPosProbCol])\
+            .drop(df_max_tps_in_group["max_tps"])
+
+    dup_removed_scores_labels = dup_removed_scores_labels.dropDuplicates(["rank"])
 
     # creating the fps column based on rank and tps column
-    sortedScoresAndLabelsCumSumThresholds = sortedScoresAndLabelsCumSumThresholds \
-        .withColumn("fps", 1 + F.col("rank") - F.col("tps"))
+    df_with_fps = dup_removed_scores_labels \
+        .withColumn("fps", 1 + F.col("index") - F.col("tps"))
 
-    return sortedScoresAndLabelsCumSumThresholds
+    return df_with_fps
 
 
 def nearest_values(df, desired_value):
-    # subtract all the values in the array by desired value & sort by minimum distance on top and take top 2 records.
-    # i.e. get nearest neighbour
-    # dfWithDiff = df.withColumn("diff", F.abs(F.col("recall") - desired_value)).sort(F.asc("diff")).take(2)
     dfWithDiff = df.withColumn("diff", F.col("recall") - F.lit(desired_value))
     df_pos = dfWithDiff.filter(dfWithDiff["diff"] > 0).sort(F.asc("diff"), F.asc("precision"))
     df_neg = dfWithDiff.filter(dfWithDiff["diff"] < 0).sort(F.asc("diff"), F.asc("precision"))
@@ -116,8 +123,11 @@ def getPrecisionByRecall(labelAndVectorisedScores,
                          desired_recall):
     # get precision, recall, thresholds
     prcurve = precision_recall_curve(labelAndVectorisedScores, rawPredictionCol, labelCol)
+    #prcurve_collected = prcurve.collect()
 
-    prcurve_filtered = prcurve.where(F.col('recall') == desired_recall)
+    prcurve_filtered = prcurve.filter(F.col('recall') == desired_recall)
+    # df_collected = prcurve_filtered.collect()
+    # raise ValueError("df_collected: {0}\nprecision_recall_curve: {1}".format(df_collected, prcurve_collected))
 
     # if the recall value exists then get direct precision corresponding to it
     if (prcurve_filtered.count() > 0):

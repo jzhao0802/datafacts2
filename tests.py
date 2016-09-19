@@ -22,9 +22,9 @@ class PREvaluationMetricTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.sc = SparkContext(appName=cls.__name__)
-        sqlContext = HiveContext(cls.sc)
+        cls.sqlContext = HiveContext(cls.sc)
         file = "s3://emr-rwes-pa-spark-dev-datastore/lichao.test/data/toy_data/task6/labelPred.csv"
-        scoreAndLabels = sqlContext.read.load(file, format='com.databricks.spark.csv', header='true',
+        scoreAndLabels = cls.sqlContext.read.load(file, format='com.databricks.spark.csv', header='true',
                                               inferSchema='true')
         scoreAndLabels = scoreAndLabels.select(scoreAndLabels.label.cast('double'), scoreAndLabels.pred)\
                                        .withColumnRenamed("cast(label as double)", "label")
@@ -141,6 +141,33 @@ class PREvaluationMetricTests(unittest.TestCase):
         )
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised)
         self.assertEqual(round(precision, 4), 0.9048,
+                         "precisionAtGivenRecall metric producing incorrect precision: %s" % precision)
+
+    # def test_test(self):
+    #     from pyspark.mllib.linalg import Vectors
+    #     scoreAndLabels = map(lambda x: (Vectors.dense([1.0 - x[0], x[0]]), x[1]),
+    #                          [(0.1, 0.0), (0.1, 1.0), (0.4, 0.0), (0.6, 0.0), (0.6, 1.0), (0.6, 1.0), (0.8, 1.0)])
+    #     dataset = PREvaluationMetricTests.sqlContext.createDataFrame(scoreAndLabels, ["raw", "label"])
+    #     evaluator = BinaryClassificationEvaluator_IMSPA(
+    #         rawPredictionCol="raw",
+    #         metricName="precisionAtGivenRecall",
+    #         metricParams={"recallValue":1.0}
+    #     )
+    #     precision = evaluator.evaluate(dataset)
+    #     raise ValueError("precision: {}".format(precision))
+
+    def test_test(self):
+        from pyspark.mllib.linalg import Vectors
+        scoreAndLabels = map(lambda x: (Vectors.dense([1.0 - x[0], x[0]]), x[1]),
+                             [(0.1, 0.0), (0.1, 1.0), (0.4, 0.0), (0.6, 0.0), (0.6, 1.0), (0.6, 1.0), (0.8, 1.0)])
+        dataset = PREvaluationMetricTests.sqlContext.createDataFrame(scoreAndLabels, ["raw", "label"])
+        evaluator = BinaryClassificationEvaluator_IMSPA(
+            rawPredictionCol="raw",
+            metricName="precisionAtGivenRecall",
+            metricParams={"recallValue":1}
+        )
+        precision = evaluator.evaluate(dataset)
+        self.assertEqual(round(precision, 4), 0.5714,
                          "precisionAtGivenRecall metric producing incorrect precision: %s" % precision)
 
 
