@@ -6,33 +6,6 @@ from pyspark.ml.feature import VectorAssembler
 from pyspark.sql.functions import lit, col
 
 
-# def _Test1():
-#     file = "s3://emr-rwes-pa-spark-dev-datastore/lichao.test/data/toy_data/task6/labelPred.csv"
-#     scoreAndLabels = sqlContext.read.load(file, format='com.databricks.spark.csv', header='true',
-#                                           inferSchema='true')
-#     scoreAndLabels = scoreAndLabels.select(scoreAndLabels.label.cast('double'), scoreAndLabels.pred) \
-#         .withColumnRenamed("cast(label as double)", "label")
-#     evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol="pred",
-#                                                     labelCol="label", metricValue=0.6)
-#     precision = evaluator.evaluate(scoreAndLabels)
-#
-#     if (precision != 0.8):
-#         raise ValueError("Incorrect precision result!")
-
-
-# def _Test3():
-#     file = "s3://emr-rwes-pa-spark-dev-datastore/lichao.test/data/toy_data/task6/labelPred.csv"
-#     scoreAndLabels = sqlContext.read.load(file, format='com.databricks.spark.csv', header='true',
-#                                           inferSchema='true')
-#     scoreAndLabels = scoreAndLabels.select(scoreAndLabels.label.cast('double'), scoreAndLabels.pred).withColumnRenamed(
-#         "cast(label as double)", "label")
-#
-#     evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol="pred", labelCol="label")
-#     precision = evaluator.evaluate(scoreAndLabels, {"metricName": "precisionByRecall", "metricValue": 0.6})
-#
-#     if (precision != 0.8):
-#         raise ValueError("Incorrect precision result!")
-
 def assemble_pred_vector(data, orgLabelCol, orgPositivePredictionCol, newLabelCol, newPredictionCol):
     newdata = data \
         .withColumn('prob_0', lit(1) - data[orgPositivePredictionCol]) \
@@ -65,19 +38,6 @@ class PREvaluationMetricTests(unittest.TestCase):
         cls.scoreAndLabelsVectorised.cache()
         cls.tolerance = 0.0050
 
-
-        # path2 = '~/Downloads/Task6__pr_evaluation_metric/toydata/randata_100x20.csv'
-        # scoreAndLabels2 = sqlContext.read.load(path2, format='com.databricks.spark.csv', header='true',
-        #                                       inferSchema='true')
-        # scoreAndLabelscol = scoreAndLabels2.columns
-        # # combine features
-        # assembler_scoreAndLabels = VectorAssembler(inputCols=scoreAndLabelscol[2:], outputCol="features")
-        # data = assembler_scoreAndLabels.transform(scoreAndLabels2) \
-        #     .select('matched_positive_id', 'label', 'features')
-        # data = data.select(data.matched_positive_id, data.label.cast('double'), data.features)
-        # cls.dataWithFoldID = AppendDataMatchingFoldIDs(data=data, nFolds=cls.nFolds)
-        # cls.dataWithFoldID.cache()
-
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
@@ -88,18 +48,18 @@ class PREvaluationMetricTests(unittest.TestCase):
         ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderROC'})
         self.assertTrue((0.8290 - self.tolerance) <= ROC <= (0.8290 + self.tolerance), "Area under ROC value is incorrect.")
 
-    # def test_ROC_isLargeBetter(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning False.")
+    def test_ROC_isLargeBetter(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA()
+        self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning False.")
 
     def test_areaUnderPR(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
         PR = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderPR'})
         self.assertTrue((0.8372 - self.tolerance) <= PR <= (0.8372 + self.tolerance), "Area under PR value is incorrect.")
 
-    # def test_PR_isLargeBetter(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false.")
+    def test_PR_isLargeBetter(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA()
+        self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false.")
 
     def test_is_precision_matching_1(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
@@ -150,10 +110,8 @@ class PREvaluationMetricTests(unittest.TestCase):
     def test_is_ROC_matching(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
         ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderROC'})
-        tolerance = 0.0050
-        self.assertTrue((0.8290 - tolerance) <= ROC<= (0.8290 + tolerance), "ROC value is outside of the specified range")
+        self.assertTrue((0.8290 - self.tolerance) <= ROC<= (0.8290 + self.tolerance), "ROC value is outside of the specified range")
 
 
 if __name__ == "__main__":
     unittest.main()
-    

@@ -6,10 +6,6 @@ from pyspark.ml.param import Param, Params
 from pyspark.ml.param.shared import HasLabelCol, HasRawPredictionCol
 import pyspark.sql.functions as F
 from pyspark.sql.types import DoubleType
-# a temporary solution for SQLContext
-from pyspark import SparkContext
-from pyspark.sql import HiveContext
-#
 
 __all__ = ['BinaryClassificationEvaluator_IMSPA']
 
@@ -65,12 +61,6 @@ def _binary_clf_curve(labelAndVectorisedScores, rawPredictionCol, labelCol):
         .toDF(['data', 'index']) \
         .select('data.' + labelCol, 'data.' + localPosProbCol, 'data.rank', 'index')
 
-    # get existing spark context
-    # sc = SparkContext._active_spark_context
-
-    # get existing HiveContext
-    # sqlContext = HiveContext.getOrCreate(sc)
-
     # saving the dataframe to temporary table
     sortedScoresAndLabels.registerTempTable("processeddata")
 
@@ -109,16 +99,9 @@ def nearest_values(df, desired_value):
     n_neg_rows = df_neg.count()
     if (n_pos_rows == 0) & (n_neg_rows == 0):
         raise ValueError("Finding nearest recall values failed. There are no recall values different from the desired value. ")
-    # collected_df = dfWithDiff.collect()
-    # diff_list = [x.asDict()["diff"] for x in collected_df]
-    # raise ValueError("desired value: {0}; n_pos_rows: {1}; n_neg_rows: {2}\n recall list: {3}".format(desired_value, n_pos_rows, n_neg_rows, recall_list))
 
     first_pos = []
     last_neg = []
-    # raise ValueError(
-    #         "desired value: {0}; n_pos_rows: {1}; n_neg_rows: {2}\n diff list: {3}".format(desired_value, n_pos_rows,
-    #                                                                                          n_neg_rows, diff_list))
-
     if n_pos_rows > 0:
         first_pos = df_pos.take(1)
     if n_neg_rows > 0:
@@ -143,10 +126,6 @@ def getPrecisionByRecall(labelAndVectorisedScores,
     # if the recall does not exist in the computed values, do nearest neighbour
     else:
         prcurve_nearest = nearest_values(prcurve, desired_recall)
-        # prcurve_nearest[0]['index']
-        # prcurve_nearest.cache()
-
-        # indices = prcurve_nearest.select('index').flatMap(lambda x: x).collect()
 
         if len(prcurve_nearest) == 1:
             return (prcurve_nearest[0].asDict())['precision']
