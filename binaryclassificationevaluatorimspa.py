@@ -101,8 +101,30 @@ def _binary_clf_curve(labelAndVectorisedScores, rawPredictionCol, labelCol):
 def nearest_values(df, desired_value):
     # subtract all the values in the array by desired value & sort by minimum distance on top and take top 2 records.
     # i.e. get nearest neighbour
-    dfWithDiff = df.withColumn("diff", F.abs(F.col("recall") - desired_value)).sort(F.asc("diff")).take(2)
-    return dfWithDiff
+    # dfWithDiff = df.withColumn("diff", F.abs(F.col("recall") - desired_value)).sort(F.asc("diff")).take(2)
+    dfWithDiff = df.withColumn("diff", F.col("recall") - F.lit(desired_value))
+    df_pos = dfWithDiff.filter(dfWithDiff["diff"] > 0).sort(F.asc("diff"), F.asc("precision"))
+    df_neg = dfWithDiff.filter(dfWithDiff["diff"] < 0).sort(F.asc("diff"), F.asc("precision"))
+    n_pos_rows = df_pos.count()
+    n_neg_rows = df_neg.count()
+    if (n_pos_rows == 0) & (n_neg_rows == 0):
+        raise ValueError("Finding nearest recall values failed. There are no recall values different from the desired value. ")
+    # collected_df = dfWithDiff.collect()
+    # diff_list = [x.asDict()["diff"] for x in collected_df]
+    # raise ValueError("desired value: {0}; n_pos_rows: {1}; n_neg_rows: {2}\n recall list: {3}".format(desired_value, n_pos_rows, n_neg_rows, recall_list))
+
+    first_pos = []
+    last_neg = []
+    # raise ValueError(
+    #         "desired value: {0}; n_pos_rows: {1}; n_neg_rows: {2}\n diff list: {3}".format(desired_value, n_pos_rows,
+    #                                                                                          n_neg_rows, diff_list))
+
+    if n_pos_rows > 0:
+        first_pos = df_pos.take(1)
+    if n_neg_rows > 0:
+        last_neg = [df_neg.collect()[-1]]
+
+    return first_pos + last_neg
 
 
 def getPrecisionByRecall(labelAndVectorisedScores,
@@ -126,19 +148,22 @@ def getPrecisionByRecall(labelAndVectorisedScores,
 
         # indices = prcurve_nearest.select('index').flatMap(lambda x: x).collect()
 
-        diff_value_near1 = (prcurve_nearest[0].asDict())['diff']
-        diff_value_near2 = (prcurve_nearest[1].asDict())['diff']
+        if len(prcurve_nearest) == 1:
+            return (prcurve_nearest[0].asDict())['precision']
+
+        abs_diff1 = abs((prcurve_nearest[0].asDict())['diff'])
+        abs_diff2 = abs((prcurve_nearest[1].asDict())['diff'])
 
         precision_near1 = (prcurve_nearest[0].asDict())['precision']
         precision_near2 = (prcurve_nearest[1].asDict())['precision']
 
-        if (diff_value_near1 > diff_value_near2):
+        if (abs_diff1 > abs_diff2):
             return precision_near2
 
-        elif (diff_value_near1 < diff_value_near2):
+        elif (abs_diff1 < abs_diff2):
             return precision_near1
 
-        elif (diff_value_near1 == diff_value_near2):
+        elif (abs_diff1 == abs_diff2):
             return (precision_near1 + precision_near2) / 2.0
 
 

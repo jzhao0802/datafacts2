@@ -83,73 +83,69 @@ class PREvaluationMetricTests(unittest.TestCase):
         cls.sc.stop()
         
 
-    # def test_areaUnderROC(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsRaw, {evaluator.metricName: 'areaUnderROC'})
-    #     self.assertTrue((0.8290 - self.tolerance) <= ROC <= (0.8290 + self.tolerance), "ROC value is incorrect.")
-    #
+    def test_areaUnderROC(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        ROC = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderROC'})
+        self.assertTrue((0.8290 - self.tolerance) <= ROC <= (0.8290 + self.tolerance), "Area under ROC value is incorrect.")
+
     # def test_ROC_isLargeBetter(self):
     #     evaluator = BinaryClassificationEvaluator_IMSPA()
     #     self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning False.")
-    #
-    # def test_areaUnderPR(self):
+
+    def test_areaUnderPR(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        PR = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {evaluator.metricName: 'areaUnderPR'})
+        self.assertTrue((0.8372 - self.tolerance) <= PR <= (0.8372 + self.tolerance), "Area under PR value is incorrect.")
+
+    # def test_PR_isLargeBetter(self):
     #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     PR = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsRaw, {evaluator.metricName: 'areaUnderPR'})
-    #     self.assertTrue((0.8372 - self.tolerance) <= PR <= (0.8372 + self.tolerance), "PR value is outside of the specified range")
-    #
-    # def test_is_PR_isLargeBetter_matching(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     PR = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsRaw, {evaluator.metricName: 'areaUnderPR'})
-    #     self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false.")
-    #
-    # def test_is_precision_matching_1(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     desiredRecall = decimal.Decimal('0.2')
-    #     precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabels,
-    #                                    {evaluator.metricName: "precisionByRecall",
-    #                                     evaluator.metricValue: desiredRecall})
-    #     self.assertEqual(precision,1.0, "precisionByRecall metric producing incorrect precision: %s" % precision)
-    #
-    # def test_is_precision_matching_2(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     desiredRecall = decimal.Decimal('0.4')
-    #     precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabels,
-    #                                    {evaluator.metricName: "precisionByRecall",
-    #                                     evaluator.metricValue: desiredRecall})
-    #     self.assertEqual(precision, 0.9048, "precisionByRecall metric producing incorrect precision: %s" % precision)
-    #     print("%s \n" % precision)
-    #
-    # def test_is_precision_matching_3(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     desiredRecall = decimal.Decimal('0.6')
-    #     precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabels,
-    #                                    {evaluator.metricName: "precisionByRecall",
-    #                                     evaluator.metricValue: desiredRecall})
-    #     self.assertEqual(precision, 0.8003, "precisionByRecall metric producing incorrect precision: %s" % precision)
-    #     print("%s \n" % precision)
-    #
-    # def test_is_precision_isLargeBetter_matching(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA()
-    #     desiredRecall = decimal.Decimal('0.2')
-    #     precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabels,
-    #                                    {evaluator.metricName: "precisionByRecall",
-    #                                     evaluator.metricValue: desiredRecall})
     #     self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false.")
 
-    # def test_precision_at_given_recall_correct_with_init(self):
-    #     evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=self.rawPredictionCol,
-    #                                                     labelCol=self.labelCol, metricValue=0.6)
-    #     precision = evaluator.evaluate(self.scoreAndLabelsVectorised)
-    #
-    #     self.assertEqual(precision, 0.8, "Incorrect precision result at the given recall using init")
-    #
+    def test_is_precision_matching_1(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        desiredRecall = 0.2
+        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
+                                       {"metricName": "precisionByRecall",
+                                        "metricValue": desiredRecall})
+        self.assertEqual(round(precision, 4), 1.0, "precisionByRecall metric producing incorrect precision: %s" % precision)
 
-    
+    def test_is_precision_matching_2(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        desiredRecall = 0.4
+        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
+                                       {"metricName": "precisionByRecall",
+                                        "metricValue": desiredRecall})
+        self.assertEqual(round(precision, 4), 0.9048, "precisionByRecall metric producing incorrect precision: %s" % precision)
+
+    def test_is_precision_matching_3(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        desiredRecall = 0.6
+        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
+                                       {"metricName": "precisionByRecall",
+                                        "metricValue": desiredRecall})
+        self.assertEqual(round(precision, 4), 0.8000, "precisionByRecall metric producing incorrect precision: %s" % precision)
+
+    def test_is_precision_isLargeBetter_matching(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
+        self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false before calculating precision at recall.")
+        desiredRecall = 0.2
+        precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised,
+                                       {"metricName": "precisionByRecall",
+                                        "metricValue": desiredRecall})
+        self.assertTrue(evaluator.isLargerBetter(), "method isLargerBetter() returning false after calculating precision at recall.")
+
+    def test_precision_at_given_recall_correct_with_init(self):
+        evaluator = BinaryClassificationEvaluator_IMSPA(metricName="precisionByRecall", rawPredictionCol=self.rawPredictionCol,
+                                                        labelCol=self.labelCol, metricValue=0.6)
+        precision = evaluator.evaluate(self.scoreAndLabelsVectorised)
+
+        self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using init")
+
     def test_precision_at_given_recall_correct_with_evaluate(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
         precision = evaluator.evaluate(PREvaluationMetricTests.scoreAndLabelsVectorised, {"metricName": "precisionByRecall", "metricValue": 0.6})
 
-        self.assertEqual(precision, 0.8, "Incorrect precision result at the given recall using evaluate")
+        self.assertEqual(round(precision, 4), 0.8, "Incorrect precision result at the given recall using evaluate")
 
     def test_is_ROC_matching(self):
         evaluator = BinaryClassificationEvaluator_IMSPA(rawPredictionCol=self.rawPredictionCol, labelCol=self.labelCol)
@@ -161,24 +157,3 @@ class PREvaluationMetricTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
     
-
-# if __name__ == "__main__":
-#     from pyspark.context import SparkContext
-#     from pyspark import SparkConf, SparkContext
-#     from pyspark.sql import HiveContext
-#     from pyspark.sql.types import *
-#     import decimal
-#
-#     print("started..")
-#
-#     desiredRecall = decimal.Decimal('0.8')
-#     app_name = "BinaryClassificationEvaluator_IMSPA"
-#     sc = SparkContext(appName=app_name)
-#     sqlContext = HiveContext(sc)
-#
-#     _Test1()
-#     _Test3()
-#
-#     sc.stop()
-#
-#     print("finished..")
